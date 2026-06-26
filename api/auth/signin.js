@@ -35,7 +35,7 @@ export default async function handler(req, res) {
     const token = jwt.sign(
       { sub: user.id, email: user.email },
       process.env.JWT_SECRET,
-      { expiresIn: '7d' }
+      { expiresIn: '24h' }
     );
 
     const { password_hash, ...safeUser } = user;

@@ -36,7 +36,7 @@ export default async function handler(req, res) {
       });
     } catch (err) {
       console.error('[me GET]', err.message);
-      return serverError(res, err.message);
+      return serverError(res);
     }
   }
 
@@ -51,7 +51,7 @@ export default async function handler(req, res) {
       const { data: existing, error: fetchErr } = await supabase
         .from('users').select('password_hash').eq('id', user.id).single();
 
-      if (fetchErr) return serverError(res, fetchErr.message);
+      if (fetchErr) return serverError(res);
       if (!existing?.password_hash) return badRequest(res, 'Password change is not available for Google sign-in accounts.');
 
       const match = await bcrypt.compare(body.current_password, existing.password_hash);
@@ -60,7 +60,7 @@ export default async function handler(req, res) {
 
       const hash = await bcrypt.hash(body.new_password, 12);
       const { error } = await supabase.from('users').update({ password_hash: hash, updated_at: new Date().toISOString() }).eq('id', user.id);
-      if (error) return serverError(res, error.message);
+      if (error) return serverError(res);
       return ok(res, { message: 'Password updated successfully.' });
     }
 
@@ -70,7 +70,11 @@ export default async function handler(req, res) {
     if (body.last_name    !== undefined) updates.last_name       = body.last_name.trim();
     if (body.phone        !== undefined) updates.phone           = body.phone.trim();
     if (body.course_interest !== undefined) updates.course_interest = body.course_interest;
-    if (body.avatar_url   !== undefined) updates.avatar_url      = body.avatar_url;
+    if (body.avatar_url !== undefined) {
+      const url = String(body.avatar_url).trim();
+      if (url && !/^https?:\/\//i.test(url)) return badRequest(res, 'Invalid avatar URL.');
+      updates.avatar_url = url || null;
+    }
 
     const fields = Object.keys(updates).filter(k => k !== 'updated_at');
     if (!fields.length) return badRequest(res, 'Nothing to update.');
@@ -79,7 +83,7 @@ export default async function handler(req, res) {
       .from('users').update(updates).eq('id', user.id)
       .select(USER_COLS).single();
 
-    if (error) return serverError(res, error.message);
+    if (error) return serverError(res);
     return ok(res, { user: updated });
   }
 }

@@ -1,9 +1,7 @@
 import { supabase } from '../../lib/supabase.js';
+import { requireAdmin } from '../../lib/auth.js';
 import { ok, unauthorized, badRequest, serverError, allowMethods } from '../../lib/helpers.js';
 
-function checkAdmin(req) {
-  return (req.headers.authorization || '').replace('Bearer ', '') === process.env.ADMIN_SECRET;
-}
 
 function slugify(text) {
   return text.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '');
@@ -12,7 +10,7 @@ function slugify(text) {
 export default async function handler(req, res) {
   const block = allowMethods(req, res, ['GET', 'POST', 'PATCH', 'DELETE', 'OPTIONS']);
   if (block) return;
-  if (!checkAdmin(req)) return unauthorized(res);
+  if (requireAdmin(req, res) !== true) return;
 
   if (req.method === 'GET') {
     const { data, error } = await supabase.from('blog_posts').select('*').order('created_at', { ascending: false });

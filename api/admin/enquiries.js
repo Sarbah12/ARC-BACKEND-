@@ -1,15 +1,12 @@
 import { supabase } from '../../lib/supabase.js';
+import { requireAdmin } from '../../lib/auth.js';
 import { ok, unauthorized, serverError, allowMethods } from '../../lib/helpers.js';
 
-function checkAdmin(req) {
-  const token = (req.headers.authorization || '').replace('Bearer ', '');
-  return token === process.env.ADMIN_SECRET;
-}
 
 export default async function handler(req, res) {
   const block = allowMethods(req, res, ['GET', 'PATCH', 'OPTIONS']);
   if (block) return;
-  if (!checkAdmin(req)) return unauthorized(res);
+  if (requireAdmin(req, res) !== true) return;
 
   if (req.method === 'GET') {
     try {
