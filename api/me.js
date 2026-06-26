@@ -4,11 +4,12 @@ import { supabase } from '../lib/supabase.js';
 import { ok, unauthorized, badRequest, serverError, allowMethods } from '../lib/helpers.js';
 
 function getUser(req) {
-  const auth = req.headers.authorization || '';
-  const token = auth.replace('Bearer ', '');
+  const token = (req.headers.authorization || '').replace('Bearer ', '');
   if (!token) return null;
   try { return jwt.verify(token, process.env.JWT_SECRET); } catch { return null; }
 }
+
+const USER_COLS = 'id, first_name, last_name, email, phone, course_interest, role, avatar_url, google_id, created_at';
 
 export default async function handler(req, res) {
   const block = allowMethods(req, res, ['GET', 'PATCH', 'OPTIONS']);
@@ -17,58 +18,68 @@ export default async function handler(req, res) {
   const user = getUser(req);
   if (!user) return unauthorized(res);
 
-  // GET — fetch full profile + registrations + rsvps
+  // ── GET ──
   if (req.method === 'GET') {
     try {
-      const [{ data: profile }, { data: registrations }, { data: rsvps }] = await Promise.all([
-        supabase.from('users').select('id, first_name, last_name, email, course_interest, role, avatar_url, created_at').eq('id', user.id).single(),
+      const [profileRes, regsRes, rsvpsRes] = await Promise.all([
+        supabase.from('users').select(USER_COLS).eq('id', user.id).single(),
         supabase.from('registrations').select('*').eq('email', user.email).order('created_at', { ascending: false }),
-        supabase.from('event_rsvps').select('*, events(title, date, location)').eq('user_id', user.id).order('created_at', { ascending: false }),
+        supabase.from('event_rsvps').select('id, created_at, events(id, title, date, location)').eq('user_id', user.id).order('created_at', { ascending: false }),
       ]);
 
-      return ok(res, { profile, registrations: registrations || [], rsvps: rsvps || [] });
+      if (profileRes.error) throw profileRes.error;
+
+      return ok(res, {
+        profile:       profileRes.data,
+        registrations: regsRes.data   || [],
+        rsvps:         rsvpsRes.data  || [],
+      });
     } catch (err) {
-      console.error('[me GET]', err);
-      return serverError(res);
+      console.error('[me GET]', err.message);
+      return serverError(res, err.message);
     }
   }
 
-  // PATCH — update profile or change password
+  // ── PATCH ──
   if (req.method === 'PATCH') {
-    const { first_name, last_name, course_interest, current_password, new_password } = req.body || {};
+    const body = req.body || {};
 
-    try {
-      // Password change flow
-      if (new_password) {
-        if (!current_password) return badRequest(res, 'Current password required.');
-        const { data: existing } = await supabase.from('users').select('password_hash').eq('id', user.id).single();
-        if (!existing?.password_hash) return badRequest(res, 'Password change not available for social login accounts.');
-        const match = await bcrypt.compare(current_password, existing.password_hash);
-        if (!match) return badRequest(res, 'Current password is incorrect.');
-        if (new_password.length < 8) return badRequest(res, 'New password must be at least 8 characters.');
-        const hash = await bcrypt.hash(new_password, 12);
-        await supabase.from('users').update({ password_hash: hash }).eq('id', user.id);
-        return ok(res, { message: 'Password updated.' });
-      }
+    // Password change
+    if (body.new_password !== undefined) {
+      if (!body.current_password) return badRequest(res, 'Current password is required.');
 
-      // Profile update
-      const updates = {};
-      if (first_name !== undefined) updates.first_name = first_name.trim();
-      if (last_name  !== undefined) updates.last_name  = last_name.trim();
-      if (course_interest !== undefined) updates.course_interest = course_interest;
-      if (req.body.avatar_url !== undefined) updates.avatar_url = req.body.avatar_url;
+      const { data: existing, error: fetchErr } = await supabase
+        .from('users').select('password_hash').eq('id', user.id).single();
 
-      if (!Object.keys(updates).length) return badRequest(res, 'Nothing to update.');
+      if (fetchErr) return serverError(res, fetchErr.message);
+      if (!existing?.password_hash) return badRequest(res, 'Password change is not available for Google sign-in accounts.');
 
-      const { data: updated, error } = await supabase
-        .from('users').update(updates).eq('id', user.id)
-        .select('id, first_name, last_name, email, course_interest, role, avatar_url').single();
+      const match = await bcrypt.compare(body.current_password, existing.password_hash);
+      if (!match) return badRequest(res, 'Current password is incorrect.');
+      if (body.new_password.length < 8) return badRequest(res, 'New password must be at least 8 characters.');
 
-      if (error) throw error;
-      return ok(res, { user: updated });
-    } catch (err) {
-      console.error('[me PATCH]', err);
-      return serverError(res);
+      const hash = await bcrypt.hash(body.new_password, 12);
+      const { error } = await supabase.from('users').update({ password_hash: hash, updated_at: new Date().toISOString() }).eq('id', user.id);
+      if (error) return serverError(res, error.message);
+      return ok(res, { message: 'Password updated successfully.' });
     }
+
+    // Profile update
+    const updates = { updated_at: new Date().toISOString() };
+    if (body.first_name   !== undefined) updates.first_name      = body.first_name.trim();
+    if (body.last_name    !== undefined) updates.last_name       = body.last_name.trim();
+    if (body.phone        !== undefined) updates.phone           = body.phone.trim();
+    if (body.course_interest !== undefined) updates.course_interest = body.course_interest;
+    if (body.avatar_url   !== undefined) updates.avatar_url      = body.avatar_url;
+
+    const fields = Object.keys(updates).filter(k => k !== 'updated_at');
+    if (!fields.length) return badRequest(res, 'Nothing to update.');
+
+    const { data: updated, error } = await supabase
+      .from('users').update(updates).eq('id', user.id)
+      .select(USER_COLS).single();
+
+    if (error) return serverError(res, error.message);
+    return ok(res, { user: updated });
   }
 }
