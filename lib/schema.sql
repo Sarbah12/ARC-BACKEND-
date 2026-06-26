@@ -105,3 +105,48 @@ create policy "events_public_read" on public.events
 
 -- Service role (our API) bypasses RLS automatically — no extra policies needed.
 -- The service role key in our .env gives full access to all tables.
+
+-- ── Blog Posts ────────────────────────────────────────────────
+create table if not exists public.blog_posts (
+  id            uuid        primary key default gen_random_uuid(),
+  title         text        not null,
+  slug          text        not null unique,
+  excerpt       text,
+  content       text        not null default '',
+  cover_image   text,
+  author_name   text        not null default 'ARC Team',
+  category      text        not null default 'General',
+  status        text        not null default 'draft',  -- draft | published
+  published_at  timestamptz,
+  created_at    timestamptz not null default now(),
+  updated_at    timestamptz not null default now()
+);
+
+alter table public.blog_posts enable row level security;
+drop policy if exists "blogs_public_read" on public.blog_posts;
+create policy "blogs_public_read" on public.blog_posts
+  for select using (status = 'published');
+
+-- ── Projects ──────────────────────────────────────────────────
+create table if not exists public.projects (
+  id            uuid        primary key default gen_random_uuid(),
+  title         text        not null,
+  description   text        not null default '',
+  image_url     text,
+  tech_stack    text[],
+  github_url    text,
+  live_url      text,
+  category      text        not null default 'General',
+  status        text        not null default 'draft',  -- draft | published
+  featured      boolean     not null default false,
+  created_at    timestamptz not null default now(),
+  updated_at    timestamptz not null default now()
+);
+
+alter table public.projects enable row level security;
+drop policy if exists "projects_public_read" on public.projects;
+create policy "projects_public_read" on public.projects
+  for select using (status = 'published');
+
+-- ── Events CRUD support (status update) ──────────────────────
+alter table public.events add column if not exists updated_at timestamptz not null default now();
