@@ -56,6 +56,7 @@ export default async function handler(req, res) {
       if (first_name !== undefined) updates.first_name = first_name.trim();
       if (last_name  !== undefined) updates.last_name  = last_name.trim();
       if (course_interest !== undefined) updates.course_interest = course_interest;
+      if (req.body.avatar_url !== undefined) updates.avatar_url = req.body.avatar_url;
 
       if (!Object.keys(updates).length) return badRequest(res, 'Nothing to update.');
 
