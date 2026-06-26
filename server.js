@@ -4,6 +4,7 @@ import cors from 'cors';
 
 import signupHandler  from './api/auth/signup.js';
 import signinHandler  from './api/auth/signin.js';
+import googleHandler  from './api/auth/google.js';
 import registerHandler from './api/register.js';
 import contactHandler  from './api/contact.js';
 import eventsHandler        from './api/events.js';
@@ -19,6 +20,7 @@ app.use(express.json());
 
 app.all('/api/auth/signup', signupHandler);
 app.all('/api/auth/signin', signinHandler);
+app.all('/api/auth/google',  googleHandler);
 app.all('/api/register',    registerHandler);
 app.all('/api/contact',     contactHandler);
 app.all('/api/events',      eventsHandler);
