@@ -150,3 +150,49 @@ create policy "projects_public_read" on public.projects
 
 -- ── Events CRUD support (status update) ──────────────────────
 alter table public.events add column if not exists updated_at timestamptz not null default now();
+
+-- ── Site Content (CMS) ────────────────────────────────────────
+create table if not exists public.site_content (
+  id         uuid        primary key default gen_random_uuid(),
+  key        text        not null unique,  -- e.g. "home.hero_title"
+  value      text        not null default '',
+  updated_at timestamptz not null default now()
+);
+
+alter table public.site_content enable row level security;
+drop policy if exists "content_public_read" on public.site_content;
+create policy "content_public_read" on public.site_content for select using (true);
+
+-- Seed default content
+insert into public.site_content (key, value) values
+  ('general.site_name',        'ARC — Accra Resource Centre'),
+  ('general.tagline',          'Free tech education for Africa''s next builders.'),
+  ('general.email',            'admin@arcaccra.org'),
+  ('general.phone',            '+233 55 289 3766'),
+  ('general.address',          'Accra Resource Center, Accra, Ghana'),
+  ('general.twitter',          ''),
+  ('general.instagram',        ''),
+  ('general.linkedin',         ''),
+  ('home.hero_eyebrow',        'A Non-Profit Initiative'),
+  ('home.hero_title_line1',    'Learn the Skills Shaping'),
+  ('home.hero_title_line2',    'Africa''s Digital Future'),
+  ('home.hero_subtitle',       'From Accra to the wider continent, ARC equips young Africans with free, practical tech skills — mobile development, graphic design, and AI — through hands-on, mentor-led learning.'),
+  ('home.bento1_tag',          'Programming Hub'),
+  ('home.bento1_title',        'We believe the next global tech architecture will be built in Accra.'),
+  ('home.bento1_body',         'ARC is not just a school; it is a non-profit ecosystem designed to decouple opportunity from cost and build Africa''s digital sovereignty, one builder at a time.'),
+  ('home.bento2_tag',          'Access'),
+  ('home.bento2_title',        'Accessible Education for All'),
+  ('home.bento2_body',         'We offer free foundational courses designed to make quality learning accessible to everyone.'),
+  ('home.bento3_tag',          'Mentorship'),
+  ('home.bento3_title',        'Learn from industry professionals'),
+  ('home.bento3_body',         'Dedicated mentors bring current engineering, product, and AI experience into every learning path.'),
+  ('about.hero_title',         'Real skills. Real people. Real impact.'),
+  ('about.mission',            'To democratise access to world-class tech education across Africa — one builder at a time.'),
+  ('about.vision',             'A continent where every young African has the skills and confidence to shape the digital economy.'),
+  ('about.value1_title',       'Free Access'),
+  ('about.value2_title',       'Hands-On Learning'),
+  ('about.value3_title',       'Mentorship'),
+  ('about.value4_title',       'Community'),
+  ('about.value5_title',       'Real Projects'),
+  ('about.value6_title',       'Career Readiness')
+on conflict (key) do nothing;
