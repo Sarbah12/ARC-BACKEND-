@@ -294,7 +294,8 @@
 </div>
 
 <script>
-  const API = 'https://arc-backend-indol.vercel.app';
+  // Same-origin: the admin panel is served by this backend, so call it directly.
+  const API = '';
   let adminToken = '';
 
   // ── Authenticated fetch with shared error handling ──

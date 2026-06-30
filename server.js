@@ -1,8 +1,12 @@
 import 'dotenv/config';
+import path from 'node:path';
+import { fileURLToPath } from 'node:url';
 import express from 'express';
 import cors from 'cors';
 import helmet from 'helmet';
 import { rateLimit } from 'express-rate-limit';
+
+const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
 import signupHandler        from './api/auth/signup.js';
 import signinHandler        from './api/auth/signin.js';
@@ -128,6 +132,9 @@ app.all('/api/admin/content',       adminLimiter, adminContentHandler);
 // Health check
 app.get('/', (_req, res) => res.json({ status: 'ARC API is running' }));
 app.get('/api/health', (_req, res) => res.json({ ok: true, time: new Date().toISOString() }));
+
+// Admin dashboard (static) — served from this same service at /admin
+app.use('/admin', express.static(path.join(__dirname, 'admin')));
 
 // ── 404 fallback ──────────────────────────────────────────────────────────────
 app.use((_req, res) => res.status(404).json({ success: false, error: 'Not found' }));
