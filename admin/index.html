@@ -297,23 +297,54 @@
   const API = 'https://arc-backend-indol.vercel.app';
   let adminToken = '';
 
+  // ── Authenticated fetch with shared error handling ──
+  // Adds the admin token, kicks back to login on 401, and throws on any
+  // non-OK response so callers can show a friendly message.
+  async function authedFetch(path, opts = {}) {
+    const res = await fetch(`${API}${path}`, {
+      ...opts,
+      headers: { ...(opts.headers || {}), Authorization: `Bearer ${adminToken}` },
+    });
+    if (res.status === 401) {
+      sessionStorage.removeItem('arc_admin');
+      location.reload();
+      throw new Error('Session expired');
+    }
+    if (!res.ok) throw new Error(`Request failed (${res.status})`);
+    return res.json();
+  }
+
+  function showTableError(elId) {
+    document.getElementById(elId).innerHTML =
+      '<p class="empty" style="color:#dc2626">Couldn\'t load data. The server may be redeploying — refresh in a moment.</p>';
+  }
+
   // ── Auth ──
   async function login() {
     const pw = document.getElementById('admin-password').value.trim();
+    const errEl = document.getElementById('login-error');
     if (!pw) return;
+    errEl.style.display = 'none';
 
-    const res = await fetch(`${API}/api/admin/stats`, {
-      headers: { Authorization: `Bearer ${pw}` }
-    });
-
-    if (res.ok) {
-      adminToken = pw;
-      sessionStorage.setItem('arc_admin', pw);
-      document.getElementById('login-screen').style.display = 'none';
-      document.getElementById('app').style.display = 'block';
-      loadAll();
-    } else {
-      document.getElementById('login-error').style.display = 'block';
+    try {
+      const res = await fetch(`${API}/api/admin/stats`, {
+        headers: { Authorization: `Bearer ${pw}` }
+      });
+      if (res.ok) {
+        adminToken = pw;
+        sessionStorage.setItem('arc_admin', pw);
+        document.getElementById('login-screen').style.display = 'none';
+        document.getElementById('app').style.display = 'block';
+        loadAll();
+      } else {
+        errEl.textContent = res.status === 401
+          ? 'Incorrect password. Try again.'
+          : `Sign-in failed (${res.status}). The server may be redeploying.`;
+        errEl.style.display = 'block';
+      }
+    } catch (err) {
+      errEl.textContent = 'Cannot reach the server. Check your connection and try again.';
+      errEl.style.display = 'block';
     }
   }
 
@@ -354,37 +385,57 @@
 
   // ── Stats ──
   async function loadStats() {
-    const res = await fetch(`${API}/api/admin/stats`, { headers: { Authorization: `Bearer ${adminToken}` } });
-    const { stats } = await res.json();
-    document.getElementById('stat-users').textContent = stats.users;
-    document.getElementById('stat-regs').textContent = stats.registrations;
-    document.getElementById('stat-regs-sub').textContent = `${stats.pendingRegistrations} pending`;
-    document.getElementById('stat-enq').textContent = stats.enquiries;
-    document.getElementById('stat-enq-sub').textContent = `${stats.unreadEnquiries} unread`;
-    document.getElementById('stat-events').textContent = stats.events;
+    try {
+      const { stats } = await authedFetch('/api/admin/stats');
+      document.getElementById('stat-users').textContent = stats.users;
+      document.getElementById('stat-regs').textContent = stats.registrations;
+      document.getElementById('stat-regs-sub').textContent = `${stats.pendingRegistrations} pending`;
+      document.getElementById('stat-enq').textContent = stats.enquiries;
+      document.getElementById('stat-enq-sub').textContent = `${stats.unreadEnquiries} unread`;
+      document.getElementById('stat-events').textContent = stats.events;
 
-    // Update sidebar badges
-    if (stats.pendingRegistrations > 0) {
-      document.getElementById('nav-registrations').innerHTML += `<span class="badge">${stats.pendingRegistrations}</span>`;
+      // Update sidebar badges (replace, never accumulate)
+      setNavBadge('nav-registrations', stats.pendingRegistrations);
+      setNavBadge('nav-enquiries', stats.unreadEnquiries);
+    } catch (err) {
+      console.error('[stats]', err);
     }
-    if (stats.unreadEnquiries > 0) {
-      document.getElementById('nav-enquiries').innerHTML += `<span class="badge">${stats.unreadEnquiries}</span>`;
+  }
+
+  // Set or clear a single count badge on a sidebar item without duplicating it.
+  function setNavBadge(navId, count) {
+    const nav = document.getElementById(navId);
+    const existing = nav.querySelector('.badge');
+    if (existing) existing.remove();
+    if (count > 0) {
+      const span = document.createElement('span');
+      span.className = 'badge';
+      span.textContent = count;
+      nav.appendChild(span);
     }
   }
 
   // ── Overview recent regs ──
   async function loadOverviewRegs() {
-    const res = await fetch(`${API}/api/admin/registrations`, { headers: { Authorization: `Bearer ${adminToken}` } });
-    const { registrations } = await res.json();
-    const recent = (registrations || []).slice(0, 5);
-    document.getElementById('overview-regs-table').innerHTML = renderRegsTable(recent);
+    try {
+      const { registrations } = await authedFetch('/api/admin/registrations');
+      const recent = (registrations || []).slice(0, 5);
+      document.getElementById('overview-regs-table').innerHTML = renderRegsTable(recent);
+    } catch (err) {
+      showTableError('overview-regs-table');
+    }
   }
 
   // ── Users ──
   async function loadUsers() {
     document.getElementById('users-table').innerHTML = '<p class="empty">Loading…</p>';
-    const res = await fetch(`${API}/api/admin/users`, { headers: { Authorization: `Bearer ${adminToken}` } });
-    const { users } = await res.json();
+    let users;
+    try {
+      ({ users } = await authedFetch('/api/admin/users'));
+    } catch (err) {
+      showTableError('users-table');
+      return;
+    }
     if (!users?.length) { document.getElementById('users-table').innerHTML = '<p class="empty">No users yet.</p>'; return; }
 
     document.getElementById('users-table').innerHTML = `
@@ -409,9 +460,12 @@
   // ── Registrations ──
   async function loadRegistrations() {
     document.getElementById('registrations-table').innerHTML = '<p class="empty">Loading…</p>';
-    const res = await fetch(`${API}/api/admin/registrations`, { headers: { Authorization: `Bearer ${adminToken}` } });
-    const { registrations } = await res.json();
-    document.getElementById('registrations-table').innerHTML = renderRegsTable(registrations, true);
+    try {
+      const { registrations } = await authedFetch('/api/admin/registrations');
+      document.getElementById('registrations-table').innerHTML = renderRegsTable(registrations, true);
+    } catch (err) {
+      showTableError('registrations-table');
+    }
   }
 
   function renderRegsTable(regs, showActions = false) {
@@ -442,20 +496,29 @@
   }
 
   async function updateReg(id, status) {
-    await fetch(`${API}/api/admin/registrations`, {
-      method: 'PATCH',
-      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${adminToken}` },
-      body: JSON.stringify({ id, status }),
-    });
-    loadRegistrations();
-    loadStats();
+    try {
+      await authedFetch('/api/admin/registrations', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ id, status }),
+      });
+      loadRegistrations();
+      loadStats();
+    } catch (err) {
+      alert('Could not update the registration. Please try again.');
+    }
   }
 
   // ── Enquiries ──
   async function loadEnquiries() {
     document.getElementById('enquiries-table').innerHTML = '<p class="empty">Loading…</p>';
-    const res = await fetch(`${API}/api/admin/enquiries`, { headers: { Authorization: `Bearer ${adminToken}` } });
-    const { enquiries } = await res.json();
+    let enquiries;
+    try {
+      ({ enquiries } = await authedFetch('/api/admin/enquiries'));
+    } catch (err) {
+      showTableError('enquiries-table');
+      return;
+    }
     if (!enquiries?.length) { document.getElementById('enquiries-table').innerHTML = '<p class="empty">No enquiries yet.</p>'; return; }
 
     document.getElementById('enquiries-table').innerHTML = `
@@ -480,13 +543,17 @@
   }
 
   async function markRead(id) {
-    await fetch(`${API}/api/admin/enquiries`, {
-      method: 'PATCH',
-      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${adminToken}` },
-      body: JSON.stringify({ id }),
-    });
-    loadEnquiries();
-    loadStats();
+    try {
+      await authedFetch('/api/admin/enquiries', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ id }),
+      });
+      loadEnquiries();
+      loadStats();
+    } catch (err) {
+      alert('Could not mark the enquiry as read. Please try again.');
+    }
   }
 
   // ── Helpers ──
