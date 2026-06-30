@@ -395,9 +395,9 @@
         <tbody>
           ${users.map(u => `
             <tr>
-              <td><strong>${u.first_name} ${u.last_name}</strong></td>
-              <td>${u.email}</td>
-              <td>${u.course_interest || '<span style="color:#bbb">—</span>'}</td>
+              <td><strong>${esc(u.first_name)} ${esc(u.last_name)}</strong></td>
+              <td>${esc(u.email)}</td>
+              <td>${u.course_interest ? esc(u.course_interest) : '<span style="color:#bbb">—</span>'}</td>
               <td><span class="badge ${u.role === 'admin' ? 'badge--purple' : 'badge--gray'}">${u.role}</span></td>
               <td style="color:var(--muted)">${fmtDate(u.created_at)}</td>
             </tr>
@@ -425,9 +425,9 @@
         <tbody>
           ${regs.map(r => `
             <tr id="reg-${r.id}">
-              <td><strong>${r.first_name} ${r.last_name}</strong></td>
-              <td>${r.email}</td>
-              <td>${r.course}</td>
+              <td><strong>${esc(r.first_name)} ${esc(r.last_name)}</strong></td>
+              <td>${esc(r.email)}</td>
+              <td>${esc(r.course)}</td>
               <td>${statusBadge(r.status)}</td>
               <td style="color:var(--muted)">${fmtDate(r.created_at)}</td>
               ${showActions ? `
@@ -466,10 +466,10 @@
         <tbody>
           ${enquiries.map(e => `
             <tr>
-              <td><strong>${e.name}</strong></td>
-              <td>${e.email}</td>
-              <td>${e.subject || '<span style="color:#bbb">—</span>'}</td>
-              <td style="max-width:260px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${e.message}</td>
+              <td><strong>${esc(e.name)}</strong></td>
+              <td>${esc(e.email)}</td>
+              <td>${e.subject ? esc(e.subject) : '<span style="color:#bbb">—</span>'}</td>
+              <td style="max-width:260px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${esc(e.message)}</td>
               <td>${e.read ? '<span class="badge badge--gray">Read</span>' : '<span class="badge badge--amber">Unread</span>'}</td>
               <td style="color:var(--muted)">${fmtDate(e.created_at)}</td>
               <td>${!e.read ? `<button class="action-btn action-btn--read" onclick="markRead('${e.id}')">Mark read</button>` : ''}</td>
@@ -490,6 +490,13 @@
   }
 
   // ── Helpers ──
+  // Escape user-submitted text before injecting into innerHTML (prevents stored XSS).
+  function esc(v) {
+    return String(v ?? '').replace(/[&<>"']/g, (c) => (
+      { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]
+    ));
+  }
+
   function statusBadge(s) {
     const map = { accepted: 'badge--green', pending: 'badge--amber', rejected: 'badge--red' };
     return `<span class="badge ${map[s] || 'badge--gray'}">${s}</span>`;

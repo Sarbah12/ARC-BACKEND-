@@ -41,10 +41,12 @@ create table if not exists public.registrations (
   mode       text        not null default 'hybrid',
   message    text,
   status     text        not null default 'pending',
+  payment_ref text,
   created_at timestamptz not null default now()
 );
 
 alter table public.registrations add column if not exists user_id uuid references public.users(id) on delete set null;
+alter table public.registrations add column if not exists payment_ref text;
 
 -- ── Enquiries ─────────────────────────────────────────────────
 create table if not exists public.enquiries (
