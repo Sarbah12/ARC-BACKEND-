@@ -8,7 +8,9 @@ import signupHandler        from './api/auth/signup.js';
 import signinHandler        from './api/auth/signin.js';
 import googleHandler        from './api/auth/google.js';
 import registerHandler      from './api/register.js';
+import registrationsHandler from './api/registrations.js';
 import contactHandler       from './api/contact.js';
+import enquiriesHandler     from './api/enquiries.js';
 import eventsHandler        from './api/events.js';
 import meHandler            from './api/me.js';
 import blogsHandler         from './api/blogs.js';
@@ -33,14 +35,20 @@ app.use(helmet({
 }));
 
 // ── CORS ──────────────────────────────────────────────────────────────────────
-const ALLOWED_ORIGINS = (process.env.ALLOWED_ORIGINS || '')
-  .split(',')
-  .map(o => o.trim())
-  .filter(Boolean);
+// Always allow the live ARC frontend, plus any extra origins from ALLOWED_ORIGINS.
+// (Defaulting these means the site keeps working even if the env var is unset.)
+const ALLOWED_ORIGINS = [
+  'https://www.arcaccra.org',
+  'https://arcaccra.org',
+  ...(process.env.ALLOWED_ORIGINS || '')
+    .split(',')
+    .map(o => o.trim())
+    .filter(Boolean),
+];
 
 // Always allow localhost in dev
 if (process.env.NODE_ENV !== 'production') {
-  ALLOWED_ORIGINS.push('http://localhost:3456', 'http://localhost:5500', 'http://127.0.0.1:5500');
+  ALLOWED_ORIGINS.push('http://localhost:3456', 'http://localhost:5500', 'http://127.0.0.1:5500', 'http://127.0.0.1:5501');
 }
 
 app.use(cors({
@@ -97,8 +105,10 @@ app.all('/api/auth/signin', authLimiter, signinHandler);
 app.all('/api/auth/google', authLimiter, googleHandler);
 
 // Public (moderate rate limit)
-app.all('/api/register',  publicLimiter, registerHandler);
-app.all('/api/contact',   publicLimiter, contactHandler);
+app.all('/api/register',       publicLimiter, registerHandler);
+app.all('/api/registrations',  publicLimiter, registrationsHandler);
+app.all('/api/contact',        publicLimiter, contactHandler);
+app.all('/api/enquiries',      publicLimiter, enquiriesHandler);
 app.all('/api/events',    publicLimiter, eventsHandler);
 app.all('/api/blogs',     publicLimiter, blogsHandler);
 app.all('/api/content',   publicLimiter, contentHandler);
@@ -116,7 +126,8 @@ app.all('/api/admin/events',        adminLimiter, adminEventsHandler);
 app.all('/api/admin/content',       adminLimiter, adminContentHandler);
 
 // Health check
-app.get('/', (_req, res) => res.json({ status: 'ok' }));
+app.get('/', (_req, res) => res.json({ status: 'ARC API is running' }));
+app.get('/api/health', (_req, res) => res.json({ ok: true, time: new Date().toISOString() }));
 
 // ── 404 fallback ──────────────────────────────────────────────────────────────
 app.use((_req, res) => res.status(404).json({ success: false, error: 'Not found' }));
@@ -127,5 +138,13 @@ app.use((err, _req, res, _next) => {
   res.status(500).json({ success: false, error: 'Internal server error' });
 });
 
-const PORT = process.env.PORT || 4000;
-app.listen(PORT, () => console.log(`ARC API running at http://localhost:${PORT}`));
+// Export the app for environments that import it (e.g. a serverless wrapper).
+export default app;
+
+// Start a real HTTP server for normal Node hosts (Render, Railway, local).
+// Render injects PORT and requires binding to 0.0.0.0. We skip listening only
+// on Vercel's serverless runtime, which invokes the exported app directly.
+if (!process.env.VERCEL) {
+  const PORT = process.env.PORT || 4000;
+  app.listen(PORT, '0.0.0.0', () => console.log(`ARC API running on port ${PORT}`));
+}

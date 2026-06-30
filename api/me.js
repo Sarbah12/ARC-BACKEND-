@@ -4,9 +4,16 @@ import { supabase } from '../lib/supabase.js';
 import { ok, unauthorized, badRequest, serverError, allowMethods } from '../lib/helpers.js';
 
 function getUser(req) {
-  const token = (req.headers.authorization || '').replace('Bearer ', '');
+  const token = (req.headers.authorization || '').replace(/^Bearer\s+/i, '');
   if (!token) return null;
-  try { return jwt.verify(token, process.env.JWT_SECRET); } catch { return null; }
+  try {
+    const payload = jwt.verify(token, process.env.JWT_SECRET);
+    // Tokens are signed with `sub` (email auth) or `id` (legacy Google) — accept both
+    // so the user id is never undefined (which crashed the uuid lookup below).
+    return { id: payload.sub || payload.id, email: payload.email, role: payload.role };
+  } catch {
+    return null;
+  }
 }
 
 const USER_COLS = 'id, first_name, last_name, email, phone, course_interest, role, avatar_url, google_id, created_at';
@@ -24,7 +31,7 @@ export default async function handler(req, res) {
       const [profileRes, regsRes, rsvpsRes] = await Promise.all([
         supabase.from('users').select(USER_COLS).eq('id', user.id).single(),
         supabase.from('registrations').select('*').eq('email', user.email).order('created_at', { ascending: false }),
-        supabase.from('event_rsvps').select('id, created_at, events(id, title, date, location)').eq('user_id', user.id).order('created_at', { ascending: false }),
+        supabase.from('event_rsvps').select('id, created_at, events(id, title, date, location)').eq('email', user.email).order('created_at', { ascending: false }),
       ]);
 
       if (profileRes.error) throw profileRes.error;

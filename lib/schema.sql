@@ -145,6 +145,17 @@ create table if not exists public.projects (
   updated_at    timestamptz not null default now()
 );
 
+-- Patch an existing projects table that predates these columns
+alter table public.projects add column if not exists description text not null default '';
+alter table public.projects add column if not exists image_url  text;
+alter table public.projects add column if not exists tech_stack text[];
+alter table public.projects add column if not exists github_url text;
+alter table public.projects add column if not exists live_url   text;
+alter table public.projects add column if not exists category   text not null default 'General';
+alter table public.projects add column if not exists status     text not null default 'draft';
+alter table public.projects add column if not exists featured   boolean not null default false;
+alter table public.projects add column if not exists updated_at timestamptz not null default now();
+
 alter table public.projects enable row level security;
 drop policy if exists "projects_public_read" on public.projects;
 create policy "projects_public_read" on public.projects
@@ -198,3 +209,7 @@ insert into public.site_content (key, value) values
   ('about.value5_title',       'Real Projects'),
   ('about.value6_title',       'Career Readiness')
 on conflict (key) do nothing;
+
+-- Force PostgREST to reload its schema cache so newly created tables
+-- (site_content, blog_posts, projects columns) are visible to the API immediately.
+notify pgrst, 'reload schema';
