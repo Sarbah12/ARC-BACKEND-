@@ -30,6 +30,7 @@ import adminRegsHandler     from './api/admin/registrations.js';
 import adminEnqHandler      from './api/admin/enquiries.js';
 import adminBlogsHandler    from './api/admin/blogs.js';
 import adminContentHandler  from './api/admin/content.js';
+import adminUploadHandler   from './api/admin/upload.js';
 import adminProjectsHandler from './api/admin/projects.js';
 import adminEventsHandler   from './api/admin/events.js';
 
@@ -137,6 +138,7 @@ app.all('/api/admin/blogs',         adminLimiter, adminBlogsHandler);
 app.all('/api/admin/projects',      adminLimiter, adminProjectsHandler);
 app.all('/api/admin/events',        adminLimiter, adminEventsHandler);
 app.all('/api/admin/content',       adminLimiter, adminContentHandler);
+app.all('/api/admin/upload',        adminLimiter, adminUploadHandler);
 
 // Staff (read-only) — auth enforced inside each handler via requireStaffOrAdmin
 app.all('/api/staff/registrations', adminLimiter, staffRegsHandler);
