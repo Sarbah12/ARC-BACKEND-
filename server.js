@@ -19,6 +19,7 @@ import contactHandler       from './api/contact.js';
 import enquiriesHandler     from './api/enquiries.js';
 import eventsHandler        from './api/events.js';
 import meHandler            from './api/me.js';
+import meAvatarHandler      from './api/me/avatar.js';
 import blogsHandler         from './api/blogs.js';
 import contentHandler       from './api/content.js';
 import projectsHandler      from './api/projects.js';
@@ -125,6 +126,7 @@ app.all('/api/blogs',     publicLimiter, blogsHandler);
 app.all('/api/content',   publicLimiter, contentHandler);
 app.all('/api/projects',  publicLimiter, projectsHandler);
 app.all('/api/me',        publicLimiter, meHandler);
+app.all('/api/me/avatar', publicLimiter, meAvatarHandler);
 
 // Admin (admin rate limit — auth enforced inside each handler via requireAdmin)
 app.all('/api/admin/stats',         adminLimiter, adminStatsHandler);
