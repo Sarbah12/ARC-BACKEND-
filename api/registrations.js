@@ -1,5 +1,6 @@
 import { z } from 'zod';
 import { supabase } from '../lib/supabase.js';
+import { sendRegistrationEmail } from '../lib/email.js';
 import { ok, created, badRequest, serverError, allowMethods } from '../lib/helpers.js';
 
 // Accepts both camelCase (firstName) and snake_case (first_name) from the frontend
@@ -79,6 +80,7 @@ export default async function handler(req, res) {
       .single();
 
     if (error) throw error;
+    sendRegistrationEmail({ to: email, firstName, course }).catch(console.error);
     return created(res, { registration });
   } catch (err) {
     console.error('[registrations POST]', err);
