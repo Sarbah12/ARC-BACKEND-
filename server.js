@@ -8,9 +8,11 @@ import { rateLimit } from 'express-rate-limit';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
-import signupHandler        from './api/auth/signup.js';
-import signinHandler        from './api/auth/signin.js';
-import googleHandler        from './api/auth/google.js';
+import signupHandler          from './api/auth/signup.js';
+import signinHandler          from './api/auth/signin.js';
+import googleHandler          from './api/auth/google.js';
+import forgotPasswordHandler  from './api/auth/forgot-password.js';
+import resetPasswordHandler   from './api/auth/reset-password.js';
 import registerHandler      from './api/register.js';
 import registrationsHandler from './api/registrations.js';
 import contactHandler       from './api/contact.js';
@@ -29,6 +31,9 @@ import adminBlogsHandler    from './api/admin/blogs.js';
 import adminContentHandler  from './api/admin/content.js';
 import adminProjectsHandler from './api/admin/projects.js';
 import adminEventsHandler   from './api/admin/events.js';
+
+import staffRegsHandler     from './api/staff/registrations.js';
+import staffEnqHandler      from './api/staff/enquiries.js';
 
 const app = express();
 
@@ -107,6 +112,8 @@ const publicLimiter = rateLimit({
 app.all('/api/auth/signup', authLimiter, signupHandler);
 app.all('/api/auth/signin', authLimiter, signinHandler);
 app.all('/api/auth/google', authLimiter, googleHandler);
+app.all('/api/auth/forgot-password', authLimiter, forgotPasswordHandler);
+app.all('/api/auth/reset-password',  authLimiter, resetPasswordHandler);
 
 // Public (moderate rate limit)
 app.all('/api/register',       publicLimiter, registerHandler);
@@ -128,6 +135,10 @@ app.all('/api/admin/blogs',         adminLimiter, adminBlogsHandler);
 app.all('/api/admin/projects',      adminLimiter, adminProjectsHandler);
 app.all('/api/admin/events',        adminLimiter, adminEventsHandler);
 app.all('/api/admin/content',       adminLimiter, adminContentHandler);
+
+// Staff (read-only) — auth enforced inside each handler via requireStaffOrAdmin
+app.all('/api/staff/registrations', adminLimiter, staffRegsHandler);
+app.all('/api/staff/enquiries',     adminLimiter, staffEnqHandler);
 
 // Health check
 app.get('/', (_req, res) => res.json({ status: 'ARC API is running' }));

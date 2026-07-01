@@ -16,6 +16,8 @@ create table if not exists public.users (
   phone           text,
   course_interest text,
   role            text        not null default 'student',
+  reset_token_hash    text,
+  reset_token_expires timestamptz,
   created_at      timestamptz not null default now(),
   updated_at      timestamptz not null default now()
 );
@@ -28,6 +30,9 @@ alter table public.users add column if not exists google_id   text unique;
 alter table public.users add column if not exists avatar_url  text;
 alter table public.users add column if not exists phone       text;
 alter table public.users add column if not exists updated_at  timestamptz not null default now();
+alter table public.users add column if not exists reset_token_hash    text;
+alter table public.users add column if not exists reset_token_expires timestamptz;
+create index if not exists users_reset_token_hash_idx on public.users (reset_token_hash);
 
 -- ── Course Registrations ──────────────────────────────────────
 create table if not exists public.registrations (

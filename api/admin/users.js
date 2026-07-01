@@ -22,11 +22,11 @@ export default async function handler(req, res) {
     }
   }
 
-  // PATCH — toggle role (user ↔ admin)
+  // PATCH — change role (student / staff / admin)
   if (req.method === 'PATCH') {
     const { id, role } = req.body || {};
     if (!id) return badRequest(res, 'id is required.');
-    if (!['user', 'admin'].includes(role)) return badRequest(res, 'role must be "user" or "admin".');
+    if (!['student', 'staff', 'admin'].includes(role)) return badRequest(res, 'role must be "student", "staff", or "admin".');
     try {
       const { error } = await supabase
         .from('users')
