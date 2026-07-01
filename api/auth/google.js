@@ -1,6 +1,7 @@
 import { OAuth2Client } from 'google-auth-library';
 import jwt from 'jsonwebtoken';
 import { supabase } from '../../lib/supabase.js';
+import { sendWelcomeEmail } from '../../lib/email.js';
 import { ok, badRequest, serverError, allowMethods } from '../../lib/helpers.js';
 
 const client = new OAuth2Client(process.env.GOOGLE_CLIENT_ID);
@@ -47,6 +48,7 @@ export default async function handler(req, res) {
 
       if (error) throw error;
       user = created;
+      sendWelcomeEmail({ to: user.email, firstName: user.first_name, course: null }).catch(console.error);
     }
 
     const token = jwt.sign(
