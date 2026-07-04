@@ -9,6 +9,12 @@ const rsvpSchema = z.object({
   phone: z.string().max(20).optional(),
 });
 
+function publicEvent(row) {
+  const image = row.image_url;
+  const image_url = image && /^https?:\/\//i.test(image) ? image : null;
+  return { ...row, image_url };
+}
+
 export default async function handler(req, res) {
   const block = allowMethods(req, res, ['GET', 'POST', 'OPTIONS']);
   if (block) return;
@@ -17,22 +23,24 @@ export default async function handler(req, res) {
   if (req.method === 'GET') {
     try {
       const { type } = req.query; // ?type=upcoming or ?type=past
+      const now = new Date().toISOString();
 
       let query = supabase
         .from('events')
         .select('id, title, description, date, location, mode, capacity, image_url, status')
-        .order('date', { ascending: false });
+        .neq('status', 'cancelled')
+        .order('date', { ascending: type === 'past' });
 
       if (type === 'upcoming') {
-        query = query.gte('date', new Date().toISOString());
+        query = query.gte('date', now).neq('status', 'past');
       } else if (type === 'past') {
-        query = query.lt('date', new Date().toISOString());
+        query = query.lt('date', now);
       }
 
       const { data, error } = await query;
       if (error) throw error;
 
-      return ok(res, { events: data });
+      return ok(res, { events: (data || []).map(publicEvent) });
     } catch (err) {
       console.error('[events GET]', err);
       return serverError(res);
