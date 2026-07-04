@@ -9,20 +9,39 @@ const rsvpSchema = z.object({
   phone: z.string().max(20).optional(),
 });
 
+function publicImageUrl(value) {
+  if (!value) return null;
+  const url = String(value).trim();
+  if (/^https?:\/\//i.test(url)) return url;
+  // Admin may store uploaded covers as data URLs — allow reasonably sized ones for display.
+  if (/^data:image\//i.test(url) && url.length <= 120_000) return url;
+  return null;
+}
+
 function publicEvent(row) {
-  const image = row.image_url;
-  const image_url = image && /^https?:\/\//i.test(image) ? image : null;
-  return { ...row, image_url };
+  return { ...row, image_url: publicImageUrl(row.image_url) };
 }
 
 export default async function handler(req, res) {
   const block = allowMethods(req, res, ['GET', 'POST', 'OPTIONS']);
   if (block) return;
 
-  // GET /api/events — list upcoming/past events
+  // GET /api/events — list upcoming/past events, or ?id= for a single event
   if (req.method === 'GET') {
     try {
-      const { type } = req.query; // ?type=upcoming or ?type=past
+      const { type, id } = req.query;
+
+      if (id) {
+        const { data, error } = await supabase
+          .from('events')
+          .select('id, title, description, date, location, mode, capacity, image_url, status')
+          .eq('id', id)
+          .neq('status', 'cancelled')
+          .single();
+        if (error) return serverError(res, error.message);
+        return ok(res, { event: data ? publicEvent(data) : null });
+      }
+
       const now = new Date().toISOString();
 
       let query = supabase
