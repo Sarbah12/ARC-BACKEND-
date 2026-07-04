@@ -39,6 +39,11 @@ import staffEnqHandler      from './api/staff/enquiries.js';
 
 const app = express();
 
+// Render (and most hosts) sit behind a reverse proxy that sets X-Forwarded-For.
+// Trusting it lets express-rate-limit read the real client IP instead of throwing
+// ERR_ERL_UNEXPECTED_X_FORWARDED_FOR (which was causing 500s on write requests).
+app.set('trust proxy', 1);
+
 // ── Security headers ──────────────────────────────────────────────────────────
 app.use(helmet({
   crossOriginResourcePolicy: { policy: 'cross-origin' },
@@ -74,7 +79,7 @@ app.use(cors({
 }));
 
 // ── Body parsing ──────────────────────────────────────────────────────────────
-app.use(express.json({ limit: '50kb' }));
+app.use(express.json({ limit: '2mb' }));
 
 // ── Rate limiters ─────────────────────────────────────────────────────────────
 
