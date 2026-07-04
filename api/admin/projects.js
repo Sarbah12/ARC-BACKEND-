@@ -1,7 +1,11 @@
+import { randomUUID } from 'node:crypto';
 import { supabase } from '../../lib/supabase.js';
 import { requireAdmin } from '../../lib/auth.js';
 import { ok, unauthorized, badRequest, serverError, allowMethods } from '../../lib/helpers.js';
 
+function validUuid(value) {
+  return /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(String(value || ''));
+}
 
 export default async function handler(req, res) {
   const block = allowMethods(req, res, ['GET', 'POST', 'PATCH', 'DELETE', 'OPTIONS']);
@@ -15,7 +19,7 @@ export default async function handler(req, res) {
   }
 
   if (req.method === 'POST') {
-    const { title, description, image_url, tech_stack, github_url, live_url, category, status, featured } = req.body || {};
+    const { id, title, description, image_url, tech_stack, github_url, live_url, category, status, featured } = req.body || {};
     if (!title?.trim()) return badRequest(res, 'Title is required.');
 
     const techArray = Array.isArray(tech_stack)
@@ -23,6 +27,7 @@ export default async function handler(req, res) {
       : (tech_stack || '').split(',').map(t => t.trim()).filter(Boolean);
 
     const { data, error } = await supabase.from('projects').insert({
+      id: validUuid(id) ? id : randomUUID(),
       title: title.trim(), description: description?.trim() || '',
       image_url: image_url || null, tech_stack: techArray,
       github_url: github_url || null, live_url: live_url || null,
