@@ -3,7 +3,7 @@ import { supabase } from '../lib/supabase.js';
 import { ok, created, badRequest, serverError, allowMethods } from '../lib/helpers.js';
 
 const rsvpSchema = z.object({
-  eventId: z.string().uuid(),
+  eventId: z.string().min(1),
   name: z.string().min(1).max(100),
   email: z.string().email(),
   phone: z.string().max(20).optional(),

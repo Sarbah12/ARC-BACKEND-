@@ -36,6 +36,7 @@ import adminProjectsHandler from './api/admin/projects.js';
 import adminEventsHandler   from './api/admin/events.js';
 import adminCoursesHandler  from './api/admin/courses.js';
 import adminActivitiesHandler from './api/admin/activities.js';
+import adminEventRsvpsHandler from './api/admin/event-rsvps.js';
 
 import staffRegsHandler     from './api/staff/registrations.js';
 import staffEnqHandler      from './api/staff/enquiries.js';
@@ -148,6 +149,7 @@ app.all('/api/admin/projects',      adminLimiter, adminProjectsHandler);
 app.all('/api/admin/events',        adminLimiter, adminEventsHandler);
 app.all('/api/admin/courses',     adminLimiter, adminCoursesHandler);
 app.all('/api/admin/activities',  adminLimiter, adminActivitiesHandler);
+app.all('/api/admin/event-rsvps', adminLimiter, adminEventRsvpsHandler);
 app.all('/api/admin/content',       adminLimiter, adminContentHandler);
 app.all('/api/admin/upload',        adminLimiter, adminUploadHandler);
 
