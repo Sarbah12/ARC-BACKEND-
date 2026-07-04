@@ -31,9 +31,19 @@ export default async function handler(req, res) {
   }
 
   if (req.method === 'PATCH') {
-    const { id, ...updates } = req.body || {};
+    const { id, event_rsvps, ...raw } = req.body || {};
     if (!id) return badRequest(res, 'id is required.');
-    if (updates.capacity) updates.capacity = parseInt(updates.capacity);
+
+    const allowed = ['title', 'description', 'date', 'location', 'mode', 'capacity', 'image_url', 'status'];
+    const updates = {};
+    for (const key of allowed) {
+      if (key in raw) updates[key] = raw[key];
+    }
+    if ('capacity' in updates) {
+      const cap = updates.capacity;
+      updates.capacity = cap === '' || cap == null ? null : parseInt(cap, 10);
+      if (Number.isNaN(updates.capacity)) updates.capacity = null;
+    }
     updates.updated_at = new Date().toISOString();
 
     const { data, error } = await supabase.from('events').update(updates).eq('id', id).select().single();
