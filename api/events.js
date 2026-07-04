@@ -32,7 +32,7 @@ export default async function handler(req, res) {
         .order('date', { ascending: type === 'past' });
 
       if (type === 'upcoming') {
-        query = query.gte('date', now).neq('status', 'past');
+        query = query.eq('status', 'upcoming').gte('date', now);
       } else if (type === 'past') {
         query = query.lt('date', now);
       }
