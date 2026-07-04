@@ -23,6 +23,7 @@ import meAvatarHandler      from './api/me/avatar.js';
 import blogsHandler         from './api/blogs.js';
 import contentHandler       from './api/content.js';
 import projectsHandler      from './api/projects.js';
+import coursesHandler       from './api/courses.js';
 
 import adminStatsHandler    from './api/admin/stats.js';
 import adminUsersHandler    from './api/admin/users.js';
@@ -33,6 +34,7 @@ import adminContentHandler  from './api/admin/content.js';
 import adminUploadHandler   from './api/admin/upload.js';
 import adminProjectsHandler from './api/admin/projects.js';
 import adminEventsHandler   from './api/admin/events.js';
+import adminCoursesHandler  from './api/admin/courses.js';
 
 import staffRegsHandler     from './api/staff/registrations.js';
 import staffEnqHandler      from './api/staff/enquiries.js';
@@ -131,6 +133,7 @@ app.all('/api/events',    publicLimiter, eventsHandler);
 app.all('/api/blogs',     publicLimiter, blogsHandler);
 app.all('/api/content',   publicLimiter, contentHandler);
 app.all('/api/projects',  publicLimiter, projectsHandler);
+app.all('/api/courses',   publicLimiter, coursesHandler);
 app.all('/api/me',        publicLimiter, meHandler);
 app.all('/api/me/avatar', publicLimiter, meAvatarHandler);
 
@@ -142,6 +145,7 @@ app.all('/api/admin/enquiries',     adminLimiter, adminEnqHandler);
 app.all('/api/admin/blogs',         adminLimiter, adminBlogsHandler);
 app.all('/api/admin/projects',      adminLimiter, adminProjectsHandler);
 app.all('/api/admin/events',        adminLimiter, adminEventsHandler);
+app.all('/api/admin/courses',     adminLimiter, adminCoursesHandler);
 app.all('/api/admin/content',       adminLimiter, adminContentHandler);
 app.all('/api/admin/upload',        adminLimiter, adminUploadHandler);
 
