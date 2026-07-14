@@ -6,8 +6,10 @@ import { isSpamSubmission, issueVerification, VERIFICATION_ENABLED } from '../li
 
 const schema = z.object({
   email: z.string().email(),
-  purpose: z.enum(['registration', 'enquiry']).optional(),
+  purpose: z.enum(['registration', 'enquiry', 'signup']).optional(),
 });
+
+const PURPOSES = new Set(['registration', 'enquiry', 'signup']);
 
 // POST /api/verify/request — email a one-time code and return a signed challenge.
 // Response: { success, enabled, verification_expiry?, verification_sig? }
@@ -20,7 +22,7 @@ export default async function handler(req, res) {
   if (!parsed.success) return badRequest(res, parsed.error.issues[0].message);
 
   const email = parsed.data.email.toLowerCase();
-  const purpose = parsed.data.purpose === 'enquiry' ? 'enquiry' : 'registration';
+  const purpose = PURPOSES.has(parsed.data.purpose) ? parsed.data.purpose : 'registration';
 
   // Honeypot/timing still apply — pretend success without sending.
   if (isSpamSubmission(req.body)) return ok(res, { enabled: true });

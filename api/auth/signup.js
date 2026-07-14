@@ -3,7 +3,8 @@ import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
 import { supabase } from '../../lib/supabase.js';
 import { sendWelcomeEmail } from '../../lib/email.js';
-import { ok, created, badRequest, conflict, serverError, allowMethods } from '../../lib/helpers.js';
+import { ok, created, badRequest, conflict, serverError, allowMethods, respond } from '../../lib/helpers.js';
+import { checkVerification, VERIFICATION_ENABLED } from '../../lib/antispam.js';
 
 const schema = z.object({
   firstName: z.string().min(1).max(60),
@@ -23,6 +24,13 @@ export default async function handler(req, res) {
   }
 
   const { firstName, lastName, email, password, course } = parsed.data;
+  const lcEmail = email.toLowerCase();
+
+  // Email/password signup must verify the email with an emailed code.
+  // Google sign-up uses /api/auth/google and is exempt (Google verifies email).
+  if (VERIFICATION_ENABLED && !checkVerification(lcEmail, 'signup', req.body)) {
+    return respond(res, 403, { success: false, error: 'Please verify your email with the code we sent before creating your account.' });
+  }
 
   try {
     // Check if email already exists
