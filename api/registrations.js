@@ -1,7 +1,11 @@
 import { z } from 'zod';
-import { supabase } from '../lib/supabase.js';
+import { supabase, insertFlexible, updateFlexible } from '../lib/supabase.js';
 import { sendRegistrationEmail } from '../lib/email.js';
-import { ok, created, badRequest, serverError, allowMethods } from '../lib/helpers.js';
+import { ok, created, badRequest, serverError, allowMethods, respond } from '../lib/helpers.js';
+import {
+  isSpamSubmission, looksLikeGibberish, checkVerification,
+  getRequestIp, lookupGeo, VERIFICATION_ENABLED,
+} from '../lib/antispam.js';
 
 // Accepts both camelCase (firstName) and snake_case (first_name) from the frontend
 const schema = z.object({
@@ -33,6 +37,14 @@ export default async function handler(req, res) {
   const { email, phone, course, mode, status, note, message, payment_ref } = d;
   const lcEmail = email.toLowerCase();
 
+  // Bot traps: honeypot/timing → pretend success but store nothing.
+  if (isSpamSubmission(req.body)) {
+    return created(res, { registration: { course, status: 'pending' } });
+  }
+  if (looksLikeGibberish(firstName) && looksLikeGibberish(lastName)) {
+    return badRequest(res, 'Please enter your real first and last name.');
+  }
+
   try {
     // Look for an existing active registration for this email + course.
     // Instead of rejecting (which used to leave paid learners stuck on
@@ -45,6 +57,16 @@ export default async function handler(req, res) {
       .eq('course', course)
       .maybeSingle();
 
+    // Email verification: required for a first-time registration. An existing
+    // (already-verified) registration or a payment_ref — the post-payment
+    // re-submit — skips re-verification so the payment flow keeps working.
+    if (VERIFICATION_ENABLED && !existing && !payment_ref && !checkVerification(lcEmail, 'registration', req.body)) {
+      return respond(res, 403, { success: false, error: 'Please verify your email with the code we sent before registering.' });
+    }
+
+    const ip = getRequestIp(req);
+    const geo = await lookupGeo(ip);
+
     if (existing) {
       const patch = { first_name: firstName, last_name: lastName };
       if (phone)       patch.phone = phone;
@@ -52,32 +74,27 @@ export default async function handler(req, res) {
       if (payment_ref) patch.payment_ref = payment_ref;
       if (note || message) patch.message = note || message;
 
-      const { data: updated, error } = await supabase
-        .from('registrations')
-        .update(patch)
-        .eq('id', existing.id)
-        .select('id, course, status, created_at')
-        .single();
-
+      const { data: updated, error } = await updateFlexible(
+        'registrations', { id: existing.id }, patch, 'id, course, status, created_at');
       if (error) throw error;
       return ok(res, { registration: updated, updated: true });
     }
 
-    const { data: registration, error } = await supabase
-      .from('registrations')
-      .insert({
-        first_name: firstName,
-        last_name:  lastName,
-        email:  lcEmail,
-        phone:  phone  || null,
-        course,
-        mode:   mode   || 'hybrid',
-        message: note  || message || null,
-        status: status || 'pending',
-        payment_ref: payment_ref || null,
-      })
-      .select('id, course, status, created_at')
-      .single();
+    const { data: registration, error } = await insertFlexible('registrations', {
+      first_name: firstName,
+      last_name:  lastName,
+      email:  lcEmail,
+      phone:  phone  || null,
+      course,
+      mode:   mode   || 'hybrid',
+      message: note  || message || null,
+      status: status || 'pending',
+      payment_ref: payment_ref || null,
+      ip: ip || '',
+      geo_country: geo.country,
+      geo_city: geo.city,
+      geo_isp: geo.isp,
+    }, 'id, course, status, created_at');
 
     if (error) throw error;
     sendRegistrationEmail({ to: email, firstName, course }).catch(console.error);

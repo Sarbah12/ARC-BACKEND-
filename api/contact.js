@@ -1,7 +1,10 @@
 import { z } from 'zod';
-import { supabase } from '../lib/supabase.js';
+import { insertFlexible } from '../lib/supabase.js';
 import { sendContactNotification } from '../lib/email.js';
-import { created, badRequest, serverError, allowMethods } from '../lib/helpers.js';
+import { created, badRequest, serverError, allowMethods, respond } from '../lib/helpers.js';
+import {
+  isSpamSubmission, checkVerification, getRequestIp, lookupGeo, VERIFICATION_ENABLED,
+} from '../lib/antispam.js';
 
 const schema = z.object({
   name: z.string().min(1).max(100),
@@ -20,16 +23,29 @@ export default async function handler(req, res) {
   }
 
   const { name, email, subject, message } = parsed.data;
+  const lcEmail = email.toLowerCase();
+
+  // Bot traps → pretend success, store nothing.
+  if (isSpamSubmission(req.body)) {
+    return created(res, { message: 'Your message has been received. We\'ll be in touch shortly.' });
+  }
+  if (VERIFICATION_ENABLED && !checkVerification(lcEmail, 'enquiry', req.body)) {
+    return respond(res, 403, { success: false, error: 'Please verify your email with the code we sent before submitting.' });
+  }
 
   try {
-    const { error } = await supabase
-      .from('enquiries')
-      .insert({
-        name,
-        email: email.toLowerCase(),
-        subject: subject || null,
-        message,
-      });
+    const ip = getRequestIp(req);
+    const geo = await lookupGeo(ip);
+    const { error } = await insertFlexible('enquiries', {
+      name,
+      email: lcEmail,
+      subject: subject || null,
+      message,
+      ip: ip || '',
+      geo_country: geo.country,
+      geo_city: geo.city,
+      geo_isp: geo.isp,
+    }, 'id');
 
     if (error) throw error;
 

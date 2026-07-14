@@ -1,7 +1,11 @@
 import { z } from 'zod';
-import { supabase } from '../lib/supabase.js';
+import { supabase, insertFlexible } from '../lib/supabase.js';
 import { sendRegistrationEmail } from '../lib/email.js';
-import { created, badRequest, conflict, serverError, allowMethods } from '../lib/helpers.js';
+import { created, badRequest, conflict, serverError, allowMethods, respond } from '../lib/helpers.js';
+import {
+  isSpamSubmission, looksLikeGibberish, checkVerification,
+  getRequestIp, lookupGeo, VERIFICATION_ENABLED,
+} from '../lib/antispam.js';
 
 const schema = z.object({
   firstName: z.string().min(1).max(60),
@@ -23,13 +27,25 @@ export default async function handler(req, res) {
   }
 
   const { firstName, lastName, email, phone, course, mode, message } = parsed.data;
+  const lcEmail = email.toLowerCase();
+
+  // Bot traps → pretend success, store nothing.
+  if (isSpamSubmission(req.body)) {
+    return created(res, { registration: { course, status: 'pending' } });
+  }
+  if (looksLikeGibberish(firstName) && looksLikeGibberish(lastName)) {
+    return badRequest(res, 'Please enter your real first and last name.');
+  }
+  if (VERIFICATION_ENABLED && !checkVerification(lcEmail, 'registration', req.body)) {
+    return respond(res, 403, { success: false, error: 'Please verify your email with the code we sent before registering.' });
+  }
 
   try {
     // Prevent duplicate registrations for the same course
     const { data: existing } = await supabase
       .from('registrations')
       .select('id')
-      .eq('email', email.toLowerCase())
+      .eq('email', lcEmail)
       .eq('course', course)
       .single();
 
@@ -37,20 +53,23 @@ export default async function handler(req, res) {
       return conflict(res, 'You have already registered for this course.');
     }
 
-    const { data: registration, error } = await supabase
-      .from('registrations')
-      .insert({
-        first_name: firstName,
-        last_name: lastName,
-        email: email.toLowerCase(),
-        phone: phone || null,
-        course,
-        mode: mode || 'hybrid',
-        message: message || null,
-        status: 'pending',
-      })
-      .select('id, course, status, created_at')
-      .single();
+    const ip = getRequestIp(req);
+    const geo = await lookupGeo(ip);
+
+    const { data: registration, error } = await insertFlexible('registrations', {
+      first_name: firstName,
+      last_name: lastName,
+      email: lcEmail,
+      phone: phone || null,
+      course,
+      mode: mode || 'hybrid',
+      message: message || null,
+      status: 'pending',
+      ip: ip || '',
+      geo_country: geo.country,
+      geo_city: geo.city,
+      geo_isp: geo.isp,
+    }, 'id, course, status, created_at');
 
     if (error) throw error;
 

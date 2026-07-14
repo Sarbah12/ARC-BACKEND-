@@ -15,6 +15,8 @@ import forgotPasswordHandler  from './api/auth/forgot-password.js';
 import resetPasswordHandler   from './api/auth/reset-password.js';
 import registerHandler      from './api/register.js';
 import registrationsHandler from './api/registrations.js';
+import verifyHandler        from './api/verify.js';
+import trackHandler         from './api/track.js';
 import contactHandler       from './api/contact.js';
 import enquiriesHandler     from './api/enquiries.js';
 import eventsHandler        from './api/events.js';
@@ -127,6 +129,8 @@ app.all('/api/auth/forgot-password', authLimiter, forgotPasswordHandler);
 app.all('/api/auth/reset-password',  authLimiter, resetPasswordHandler);
 
 // Public (moderate rate limit)
+app.all('/api/verify/request', publicLimiter, verifyHandler);
+app.all('/api/track',          publicLimiter, trackHandler);
 app.all('/api/register',       publicLimiter, registerHandler);
 app.all('/api/registrations',  publicLimiter, registrationsHandler);
 app.all('/api/contact',        publicLimiter, contactHandler);
