@@ -12,6 +12,11 @@ ALTER TABLE public.enquiries ADD COLUMN IF NOT EXISTS geo_country text NOT NULL 
 ALTER TABLE public.enquiries ADD COLUMN IF NOT EXISTS geo_city text NOT NULL DEFAULT '';
 ALTER TABLE public.enquiries ADD COLUMN IF NOT EXISTS geo_isp text NOT NULL DEFAULT '';
 
+ALTER TABLE public.event_rsvps ADD COLUMN IF NOT EXISTS ip text NOT NULL DEFAULT '';
+ALTER TABLE public.event_rsvps ADD COLUMN IF NOT EXISTS geo_country text NOT NULL DEFAULT '';
+ALTER TABLE public.event_rsvps ADD COLUMN IF NOT EXISTS geo_city text NOT NULL DEFAULT '';
+ALTER TABLE public.event_rsvps ADD COLUMN IF NOT EXISTS geo_isp text NOT NULL DEFAULT '';
+
 -- Silent visitor log (one row per visitor per ~10 min, written by /api/track).
 CREATE TABLE IF NOT EXISTS public.visits (
   id uuid PRIMARY KEY DEFAULT gen_random_uuid(),

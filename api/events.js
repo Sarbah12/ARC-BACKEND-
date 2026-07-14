@@ -1,6 +1,9 @@
 import { z } from 'zod';
-import { supabase } from '../lib/supabase.js';
-import { ok, created, badRequest, serverError, allowMethods } from '../lib/helpers.js';
+import { supabase, insertFlexible } from '../lib/supabase.js';
+import { ok, created, badRequest, serverError, allowMethods, respond } from '../lib/helpers.js';
+import {
+  isSpamSubmission, checkVerification, getRequestIp, lookupGeo, VERIFICATION_ENABLED,
+} from '../lib/antispam.js';
 
 const rsvpSchema = z.object({
   eventId: z.string().min(1),
@@ -74,6 +77,16 @@ export default async function handler(req, res) {
     }
 
     const { eventId, name, email, phone } = parsed.data;
+    const lcEmail = email.toLowerCase();
+
+    // Bot traps → pretend success, store nothing.
+    if (isSpamSubmission(req.body)) {
+      return created(res, { message: 'RSVP confirmed! See you there.' });
+    }
+    // Email verification required (the event form sends a "registration" code).
+    if (VERIFICATION_ENABLED && !checkVerification(lcEmail, 'registration', req.body)) {
+      return respond(res, 403, { success: false, error: 'Please verify your email with the code we sent before registering.' });
+    }
 
     try {
       // Check for duplicate RSVP
@@ -81,21 +94,25 @@ export default async function handler(req, res) {
         .from('event_rsvps')
         .select('id')
         .eq('event_id', eventId)
-        .eq('email', email.toLowerCase())
+        .eq('email', lcEmail)
         .single();
 
       if (existing) {
         return ok(res, { message: 'You have already registered for this event.' });
       }
 
-      const { error } = await supabase
-        .from('event_rsvps')
-        .insert({
-          event_id: eventId,
-          name,
-          email: email.toLowerCase(),
-          phone: phone || null,
-        });
+      const ip = getRequestIp(req);
+      const geo = await lookupGeo(ip);
+      const { error } = await insertFlexible('event_rsvps', {
+        event_id: eventId,
+        name,
+        email: lcEmail,
+        phone: phone || null,
+        ip: ip || '',
+        geo_country: geo.country,
+        geo_city: geo.city,
+        geo_isp: geo.isp,
+      }, 'id');
 
       if (error) throw error;
 
