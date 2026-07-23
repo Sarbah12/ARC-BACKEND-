@@ -26,6 +26,7 @@ import blogsHandler         from './api/blogs.js';
 import contentHandler       from './api/content.js';
 import projectsHandler      from './api/projects.js';
 import coursesHandler       from './api/courses.js';
+import paymentsInitializeHandler from './api/payments-initialize.js';
 
 import adminStatsHandler    from './api/admin/stats.js';
 import adminUsersHandler    from './api/admin/users.js';
@@ -140,6 +141,7 @@ app.all('/api/blogs',     publicLimiter, blogsHandler);
 app.all('/api/content',   publicLimiter, contentHandler);
 app.all('/api/projects',  publicLimiter, projectsHandler);
 app.all('/api/courses',   publicLimiter, coursesHandler);
+app.all('/api/payments/initialize', publicLimiter, paymentsInitializeHandler);
 app.all('/api/me',        publicLimiter, meHandler);
 app.all('/api/me/avatar', publicLimiter, meAvatarHandler);
 

@@ -25,6 +25,7 @@ Fill in:
 - `JWT_SECRET` — any long random string (32+ chars)
 - `RESEND_API_KEY` — from [resend.com](https://resend.com) (free tier)
 - `EMAIL_FROM` — admin@arcaccra.org (must be verified in Resend)
+- `PAYSTACK_SECRET_KEY` — from [Paystack Dashboard → Settings → API Keys](https://dashboard.paystack.com/#/settings/developer)
 
 ### 4. Run locally
 ```bash
@@ -39,6 +40,8 @@ API available at `http://localhost:3000/api/...`
 | POST | `/api/auth/signup` | Create account |
 | POST | `/api/auth/signin` | Sign in |
 | POST | `/api/register` | Register for a course |
+| POST | `/api/registrations` | Register / update course enrollment |
+| POST | `/api/payments/initialize` | Start Paystack checkout (returns `authorization_url`) |
 | POST | `/api/contact` | Submit contact form |
 | GET  | `/api/events` | List events (`?type=upcoming` or `?type=past`) |
 | POST | `/api/events` | RSVP to an event |

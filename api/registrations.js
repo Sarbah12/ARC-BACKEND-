@@ -6,6 +6,7 @@ import {
   isSpamSubmission, looksLikeGibberish, checkVerification,
   getRequestIp, lookupGeo, VERIFICATION_ENABLED,
 } from '../lib/antispam.js';
+import { verifyPaystackReference } from '../lib/paystack.js';
 
 // Accepts both camelCase (firstName) and snake_case (first_name) from the frontend
 const schema = z.object({
@@ -58,10 +59,17 @@ export default async function handler(req, res) {
       .maybeSingle();
 
     // Email verification: required for a first-time registration. An existing
-    // (already-verified) registration or a payment_ref — the post-payment
-    // re-submit — skips re-verification so the payment flow keeps working.
+    // (already-verified) registration, a verified payment_ref, or the post-payment
+    // re-submit skips re-verification so the payment flow keeps working.
     if (VERIFICATION_ENABLED && !existing && !payment_ref && !checkVerification(lcEmail, 'registration', req.body)) {
       return respond(res, 403, { success: false, error: 'Please verify your email with the code we sent before registering.' });
+    }
+
+    if (payment_ref) {
+      const paymentVerified = await verifyPaystackReference(payment_ref);
+      if (!paymentVerified) {
+        return respond(res, 402, { success: false, error: 'Payment could not be verified. Please try again or contact support.' });
+      }
     }
 
     const ip = getRequestIp(req);
