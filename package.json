@@ -22,9 +22,6 @@
     "resend": "^4.0.0",
     "zod": "^3.23.8"
   },
-  "devDependencies": {
-    "vercel": "^37.0.0"
-  },
   "engines": {
     "node": ">=18"
   }

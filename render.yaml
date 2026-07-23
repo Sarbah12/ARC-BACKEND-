@@ -7,7 +7,7 @@ services:
     runtime: node
     plan: free
     region: frankfurt          # closest Render region to Ghana
-    buildCommand: npm install
+    buildCommand: npm ci --omit=dev
     startCommand: node server.js
     healthCheckPath: /api/health
     autoDeploy: true

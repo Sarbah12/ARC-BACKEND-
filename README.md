@@ -46,8 +46,6 @@ API available at `http://localhost:3000/api/...`
 | GET  | `/api/events` | List events (`?type=upcoming` or `?type=past`) |
 | POST | `/api/events` | RSVP to an event |
 
-## Deploy to Vercel
-```bash
-npx vercel
-```
-Add all env variables in the Vercel dashboard under **Settings → Environment Variables**.
+## Deploy to Render
+
+This API is deployed on Render via `render.yaml`. Push to `main` and Render runs `npm install` then `node server.js`.
