@@ -1,6 +1,6 @@
-import { randomUUID } from 'node:crypto';
+import { randomUUID, timingSafeEqual } from 'node:crypto';
 import { supabase } from '../../lib/supabase.js';
-import { requireAdmin } from '../../lib/auth.js';
+import { requireStaffOrAdmin } from '../../lib/auth.js';
 import { ok, badRequest, serverError, allowMethods } from '../../lib/helpers.js';
 
 function courseId(body = {}) {
@@ -9,10 +9,30 @@ function courseId(body = {}) {
   return `course_${randomUUID().replace(/-/g, '').slice(0, 16)}`;
 }
 
+// True when the request carries the admin password (used by the admin panel).
+function hasAdminToken(req) {
+  const secret = process.env.ADMIN_SECRET || process.env.ADMIN_TOKEN;
+  if (!secret) return false;
+  const token = (req.headers.authorization || '').replace(/^Bearer\s+/i, '');
+  if (!token) return false;
+  try {
+    const a = Buffer.from(token), b = Buffer.from(secret);
+    return a.length === b.length && timingSafeEqual(a, b);
+  } catch { return false; }
+}
+
+// Allow either the admin password (admin panel) OR a staff/admin user login
+// (staff managing courses from their dashboard). Sends 401 itself on failure.
+async function requireCourseManager(req, res) {
+  if (hasAdminToken(req)) return true;
+  const user = await requireStaffOrAdmin(req, res);
+  return user ? true : false;
+}
+
 export default async function handler(req, res) {
   const block = allowMethods(req, res, ['GET', 'POST', 'PATCH', 'DELETE', 'OPTIONS']);
   if (block) return;
-  if (requireAdmin(req, res) !== true) return;
+  if ((await requireCourseManager(req, res)) !== true) return;
 
   if (req.method === 'GET') {
     const { data, error } = await supabase
