@@ -101,9 +101,12 @@ const authLimiter = rateLimit({
 });
 
 // Admin endpoints: max 60 requests per minute per IP
+// The admin dashboard fans out many requests per screen (stats, charts,
+// global search, auto-refresh), so 60/min was easy to hit and surfaced as
+// "Too many requests" mid-task. These routes are already token-protected.
 const adminLimiter = rateLimit({
   windowMs: 60 * 1000,
-  max: 60,
+  max: 600,
   standardHeaders: 'draft-7',
   legacyHeaders: false,
   message: { success: false, error: 'Too many requests.' },
