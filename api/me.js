@@ -28,10 +28,12 @@ export default async function handler(req, res) {
   // ── GET ──
   if (req.method === 'GET') {
     try {
-      const [profileRes, regsRes, rsvpsRes] = await Promise.all([
+      const [profileRes, regsRes, rsvpsRes, progressRes] = await Promise.all([
         supabase.from('users').select(USER_COLS).eq('id', user.id).single(),
         supabase.from('registrations').select('*').eq('email', user.email).order('created_at', { ascending: false }),
         supabase.from('event_rsvps').select('id, created_at, events(id, title, date, location)').eq('email', user.email).order('created_at', { ascending: false }),
+        // Optional table — a missing course_progress must not break the dashboard.
+        supabase.from('course_progress').select('*').eq('user_id', user.id),
       ]);
 
       if (profileRes.error) throw profileRes.error;
@@ -40,6 +42,7 @@ export default async function handler(req, res) {
         profile:       profileRes.data,
         registrations: regsRes.data   || [],
         rsvps:         rsvpsRes.data  || [],
+        progress:      progressRes.error ? [] : (progressRes.data || []),
       });
     } catch (err) {
       console.error('[me GET]', err.message);

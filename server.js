@@ -22,6 +22,7 @@ import enquiriesHandler     from './api/enquiries.js';
 import eventsHandler        from './api/events.js';
 import meHandler            from './api/me.js';
 import meAvatarHandler      from './api/me/avatar.js';
+import meProgressHandler    from './api/me/progress.js';
 import blogsHandler         from './api/blogs.js';
 import contentHandler       from './api/content.js';
 import projectsHandler      from './api/projects.js';
@@ -41,6 +42,7 @@ import adminProjectsHandler from './api/admin/projects.js';
 import adminEventsHandler   from './api/admin/events.js';
 import adminCoursesHandler  from './api/admin/courses.js';
 import adminDevelopersHandler from './api/admin/developers.js';
+import adminUserDetailHandler from './api/admin/user-detail.js';
 import adminActivitiesHandler from './api/admin/activities.js';
 import adminEventRsvpsHandler from './api/admin/event-rsvps.js';
 
@@ -152,10 +154,12 @@ app.all('/api/courses',   publicLimiter, coursesHandler);
 app.all('/api/payments/initialize', publicLimiter, paymentsInitializeHandler);
 app.all('/api/me',        publicLimiter, meHandler);
 app.all('/api/me/avatar', publicLimiter, meAvatarHandler);
+app.all('/api/me/progress', publicLimiter, meProgressHandler);
 
 // Admin (admin rate limit — auth enforced inside each handler via requireAdmin)
 app.all('/api/admin/stats',         adminLimiter, adminStatsHandler);
 app.all('/api/admin/users',         adminLimiter, adminUsersHandler);
+app.all('/api/admin/users/:id',     adminLimiter, adminUserDetailHandler);
 app.all('/api/admin/registrations', adminLimiter, adminRegsHandler);
 app.all('/api/admin/enquiries',     adminLimiter, adminEnqHandler);
 app.all('/api/admin/blogs',         adminLimiter, adminBlogsHandler);
