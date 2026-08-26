@@ -1,6 +1,6 @@
 import { z } from 'zod';
 import { supabase, insertFlexible, updateFlexible } from '../lib/supabase.js';
-import { sendRegistrationEmail } from '../lib/email.js';
+import { sendRegistrationEmail, sendRegistrationNotification } from '../lib/email.js';
 import { ok, created, badRequest, serverError, allowMethods, respond } from '../lib/helpers.js';
 import {
   isSpamSubmission, looksLikeGibberish, checkVerification,
@@ -85,6 +85,11 @@ export default async function handler(req, res) {
       const { data: updated, error } = await updateFlexible(
         'registrations', { id: existing.id }, patch, 'id, course, status, created_at');
       if (error) throw error;
+      sendRegistrationNotification({
+        firstName, lastName, email: lcEmail, phone, course,
+        mode: mode || 'hybrid', status: updated?.status || status,
+        paymentRef: payment_ref, note: note || message, updated: true,
+      }).catch(console.error);
       return ok(res, { registration: updated, updated: true });
     }
 
@@ -106,6 +111,11 @@ export default async function handler(req, res) {
 
     if (error) throw error;
     sendRegistrationEmail({ to: email, firstName, course }).catch(console.error);
+    sendRegistrationNotification({
+      firstName, lastName, email: lcEmail, phone, course,
+      mode: mode || 'hybrid', status: registration?.status || status || 'pending',
+      paymentRef: payment_ref, note: note || message,
+    }).catch(console.error);
     return created(res, { registration });
   } catch (err) {
     console.error('[registrations POST]', err);

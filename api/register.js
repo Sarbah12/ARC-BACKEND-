@@ -1,6 +1,6 @@
 import { z } from 'zod';
 import { supabase, insertFlexible } from '../lib/supabase.js';
-import { sendRegistrationEmail } from '../lib/email.js';
+import { sendRegistrationEmail, sendRegistrationNotification } from '../lib/email.js';
 import { created, badRequest, conflict, serverError, allowMethods, respond } from '../lib/helpers.js';
 import {
   isSpamSubmission, looksLikeGibberish, checkVerification,
@@ -74,6 +74,10 @@ export default async function handler(req, res) {
     if (error) throw error;
 
     sendRegistrationEmail({ to: email, firstName, course }).catch(console.error);
+    sendRegistrationNotification({
+      firstName, lastName, email: lcEmail, phone, course,
+      mode: mode || 'hybrid', status: registration?.status || 'pending', note: message,
+    }).catch(console.error);
 
     return created(res, { registration });
   } catch (err) {
