@@ -37,7 +37,7 @@ export default async function handler(req, res) {
       if (id) {
         const { data, error } = await supabase
           .from('events')
-          .select('id, title, description, date, location, mode, capacity, image_url, status')
+          .select('id, title, description, date, location, mode, capacity, image_url, status, tags')
           .eq('id', id)
           .neq('status', 'cancelled')
           .single();
@@ -49,7 +49,7 @@ export default async function handler(req, res) {
 
       let query = supabase
         .from('events')
-        .select('id, title, description, date, location, mode, capacity, image_url, status')
+        .select('id, title, description, date, location, mode, capacity, image_url, status, tags')
         .neq('status', 'cancelled')
         .order('date', { ascending: type === 'past' });
 
