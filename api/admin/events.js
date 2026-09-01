@@ -45,6 +45,12 @@ function buildEventPayload(body = {}, { partial = false } = {}) {
     if (Number.isNaN(payload.capacity)) payload.capacity = null;
   }
   if (!partial || 'image_url' in body) payload.image_url = sanitizeImageUrl(body.image_url);
+  // Comma-separated labels shown as badges on the event ("workshop, free").
+  if (!partial || 'tags' in body) {
+    payload.tags = Array.isArray(body.tags)
+      ? body.tags.map(t => String(t).trim()).filter(Boolean).join(', ')
+      : String(body.tags ?? '').trim().slice(0, 300);
+  }
   if (!partial || 'status' in body) {
     payload.status = deriveEventStatus(payload.date || body.date, body.status);
   }
