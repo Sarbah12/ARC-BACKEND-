@@ -1,5 +1,5 @@
 import { randomUUID } from 'node:crypto';
-import { supabase } from '../../lib/supabase.js';
+import { supabase, insertFlexible, updateFlexible } from '../../lib/supabase.js';
 import { requireAdmin } from '../../lib/auth.js';
 import { ok, unauthorized, badRequest, serverError, allowMethods } from '../../lib/helpers.js';
 
@@ -19,21 +19,24 @@ export default async function handler(req, res) {
   }
 
   if (req.method === 'POST') {
-    const { id, title, description, image_url, tech_stack, github_url, live_url, category, status, featured } = req.body || {};
+    const { id, title, description, image_url, tech_stack, github_url, live_url, category, status, featured, stage } = req.body || {};
     if (!title?.trim()) return badRequest(res, 'Title is required.');
 
     const techArray = Array.isArray(tech_stack)
       ? tech_stack
       : (tech_stack || '').split(',').map(t => t.trim()).filter(Boolean);
 
-    const { data, error } = await supabase.from('projects').insert({
+    // `stage` marks ongoing vs completed work. insertFlexible drops it if the
+    // column hasn't been added yet, so saving never fails on an older database.
+    const { data, error } = await insertFlexible('projects', {
       id: validUuid(id) ? id : randomUUID(),
       title: title.trim(), description: description?.trim() || '',
       image_url: image_url || null, tech_stack: techArray,
       github_url: github_url || null, live_url: live_url || null,
       category: category || 'General', status: status || 'draft',
       featured: featured === true || featured === 'true',
-    }).select().single();
+      stage: stage === 'ongoing' ? 'ongoing' : 'completed',
+    });
 
     if (error) return serverError(res, error.message);
     return ok(res, { project: data });
@@ -47,7 +50,8 @@ export default async function handler(req, res) {
     }
     updates.updated_at = new Date().toISOString();
 
-    const { data, error } = await supabase.from('projects').update(updates).eq('id', id).select().single();
+    if (updates.stage) updates.stage = updates.stage === 'ongoing' ? 'ongoing' : 'completed';
+    const { data, error } = await updateFlexible('projects', { id }, updates);
     if (error) return serverError(res, error.message);
     return ok(res, { project: data });
   }
